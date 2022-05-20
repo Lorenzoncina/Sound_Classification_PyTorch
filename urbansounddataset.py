@@ -4,7 +4,7 @@ import pandas as pd
 import torchaudio
 import os
 
-class UrbanSOundDataset(Dataset):
+class UrbanSoundDataset(Dataset):
 
     #constructor
     def __init__(self, annotation_file, audio_dir):
@@ -20,6 +20,7 @@ class UrbanSOundDataset(Dataset):
         audio_sample_path = self._get_audio_sample_path(index)
         label = self._get_audio_sample_label(index)
         signal, sr = torchaudio.load(audio_sample_path)
+        return signal, label
 
     def _get_audio_sample_path(self,index):
         fold = f"fold{self.annotations.iloc[index,5]}"
@@ -32,9 +33,11 @@ class UrbanSOundDataset(Dataset):
 
 if __name__ == "__main__":
     #path to the annotation file and to the folder with audio data:
-    ANNOTATIONS_FILE =
-    AUDIO_DIR =
-    usd = UrbanSOundDataset(ANNOTATIONS_FILE, AUDIO_DIR)
+    ANNOTATIONS_FILE = "/home/lorenzoncina/Documents/Machine_Learning/datasets/UrbanSound8K/metadata/UrbanSound8K.csv"
+    AUDIO_DIR = "/home/lorenzoncina/Documents/Machine_Learning/datasets/UrbanSound8K/audio"
+    usd = UrbanSoundDataset(ANNOTATIONS_FILE, AUDIO_DIR)
 
     print(f"There are {len(usd)} samples in the dataset.")
     signal, label = usd[0]
+
+
