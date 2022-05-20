@@ -7,11 +7,12 @@ import os
 class UrbanSoundDataset(Dataset):
 
     #constructor
-    def __init__(self, annotation_file, audio_dir, transformation, target_sample_rate):
+    def __init__(self, annotation_file, audio_dir, transformation, target_sample_rate, num_samples):
         self.annotations = pd.read_csv(annotation_file)
         self.audio_dir = audio_dir
         self.transformation = transformation
         self.target_sample_rate = target_sample_rate
+        self.num_samples = num_samples
 
     #len of the dataset
     def __len__(self):
@@ -27,8 +28,13 @@ class UrbanSoundDataset(Dataset):
         #solve two problems: convert to mono if stereo and resample to 16000 hz
         signal = self._mix_down_if_necessary(signal)
         signal = self._resample_if_necessary(signal, sr)
+        #if the signal has less samples than those expetected -> zero padding
+        signal = self._right_pad_if_necessary(signal)
+        #if the signal has more samples of than expected -> cut it
+        signal = self._cut_if_necessary(signal)
         #extra step: trasform the waveform to a melspectrogram
         signal = self.transformation(signal)    #transform is a callable object, so we can pass to it directly the audio
+
         return signal, label
 
     def _get_audio_sample_path(self,index):
@@ -40,7 +46,7 @@ class UrbanSoundDataset(Dataset):
         return self.annotations.iloc[index,6]
 
     """
-    method to resample the signal 
+    private method to resample the signal 
     """
     def _resample_if_necessary(self, signal, sr):
         #if the sr is already 16000, don't do resampling
@@ -50,12 +56,27 @@ class UrbanSoundDataset(Dataset):
         return signal
 
     """
-    method to obatin a mono signal from signals with multiple channels (stereo..)
+    private method to obatin a mono signal from signals with multiple channels (stereo..)
     """
     def _mix_down_if_necessary(self, signal):
         #only when the signal is not mono
         if signal.shape[0] > 1:
             signal = torch.mean(signal, dim=0, keepdim=True)
+        return signal
+
+    def _cut_if_necessary(self, signal):
+        # signal -> pythorch tensor -> (num. channel, num. of samples) -> (1, n)
+        if signal.shape[1] > self.num_samples:
+            signal = signal[:,:self.num_samples]
+        return signal
+
+    def _right_pad_if_necessary(self,signal):
+        #signal -> pythorch tensor -> (num. channel, num. of samples) -> (1, n)
+        lenght_signal = signal.shape[1]
+        if lenght_signal < self.num_samples:
+            num_missing_samples = self.num_samples - lenght_signal
+            last_dim_padding = (0, num_missing_samples)
+            signal = torch.nn.functional.pad(signal, last_dim_padding )
         return signal
 
 
@@ -64,7 +85,8 @@ if __name__ == "__main__":
     #path to the annotation file and to the folder with audio data:
     ANNOTATIONS_FILE = "/home/lorenzoncina/Documents/Machine_Learning/datasets/UrbanSound8K/metadata/UrbanSound8K.csv"
     AUDIO_DIR = "/home/lorenzoncina/Documents/Machine_Learning/datasets/UrbanSound8K/audio"
-    SAMPLE_RATE = 16000
+    SAMPLE_RATE = 22050
+    NUM_SAMPLE = 22050  #number of samples for each audio signal of the dataset we want to consider (1 second of audio)
 
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
@@ -73,11 +95,11 @@ if __name__ == "__main__":
         n_mels= 64
     )
 
-    usd = UrbanSoundDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE)
+    usd = UrbanSoundDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLE)
 
     print(f"There are {len(usd)} samples in the dataset.")
     signal, label = usd[0]
 
-    a =1
+  
 
 
