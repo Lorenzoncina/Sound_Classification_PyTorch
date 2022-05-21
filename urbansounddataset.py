@@ -26,7 +26,7 @@ class UrbanSoundDataset(Dataset):
         label = self._get_audio_sample_label(index)
         #load audio data
         signal, sr = torchaudio.load(audio_sample_path)
-        signal = signal.to(device)  #signal registred on device
+        signal = signal.to(self.device)  #signal registred on device
         #signal -> (num_channels, samples) -> example with 2 seconds of audio at 16k sr: (2,16000)
         #solve two problems: convert to mono if stereo and resample to 16000 hz
         signal = self._mix_down_if_necessary(signal)
