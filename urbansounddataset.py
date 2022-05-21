@@ -7,12 +7,14 @@ import os
 class UrbanSoundDataset(Dataset):
 
     #constructor
-    def __init__(self, annotation_file, audio_dir, transformation, target_sample_rate, num_samples):
+    def __init__(self, annotation_file, audio_dir, transformation, target_sample_rate, num_samples, device):
         self.annotations = pd.read_csv(annotation_file)
         self.audio_dir = audio_dir
-        self.transformation = transformation
+        self.device = device
+        self.transformation = transformation.to(self.device)
         self.target_sample_rate = target_sample_rate
         self.num_samples = num_samples
+
 
     #len of the dataset
     def __len__(self):
@@ -24,6 +26,7 @@ class UrbanSoundDataset(Dataset):
         label = self._get_audio_sample_label(index)
         #load audio data
         signal, sr = torchaudio.load(audio_sample_path)
+        signal = signal.to(device)  #signal registred on device
         #signal -> (num_channels, samples) -> example with 2 seconds of audio at 16k sr: (2,16000)
         #solve two problems: convert to mono if stereo and resample to 16000 hz
         signal = self._mix_down_if_necessary(signal)
@@ -52,6 +55,7 @@ class UrbanSoundDataset(Dataset):
         #if the sr is already 16000, don't do resampling
         if sr != self.target_sample_rate:
             resampler = torchaudio.transforms.Resample(sr, self.target_sample_rate)
+            resampler = resampler.to(self.device)
             signal = resampler(signal)
         return signal
 
@@ -88,6 +92,13 @@ if __name__ == "__main__":
     SAMPLE_RATE = 22050
     NUM_SAMPLE = 22050  #number of samples for each audio signal of the dataset we want to consider (1 second of audio)
 
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device ="cpu"
+
+    print(f"Using device {device}")
+
     mel_spectrogram = torchaudio.transforms.MelSpectrogram(
         sample_rate=SAMPLE_RATE,
         n_fft= 1024,
@@ -95,11 +106,11 @@ if __name__ == "__main__":
         n_mels= 64
     )
 
-    usd = UrbanSoundDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLE)
+    usd = UrbanSoundDataset(ANNOTATIONS_FILE, AUDIO_DIR, mel_spectrogram, SAMPLE_RATE, NUM_SAMPLE, device)
 
     print(f"There are {len(usd)} samples in the dataset.")
-    signal, label = usd[0]
+    signal, label = usd[1]
 
-  
+
 
 
